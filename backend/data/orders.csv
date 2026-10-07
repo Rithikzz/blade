@@ -1,0 +1,5 @@
+order_id,customer_id,amount,status
+O1,C1,150.00,shipped
+O2,C1,200.00,shipped
+O3,C2,50.00,pending
+O4,C4,100.00,shipped

@@ -1,0 +1,1138 @@
+import React, { useState, useRef } from 'react';
+
+function App() {
+  const [dataset, setDataset] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [question, setQuestion] = useState("");
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planData, setPlanData] = useState(null);
+  const [planError, setPlanError] = useState(null);
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeData, setCodeData] = useState(null);
+  const [codeError, setCodeError] = useState(null);
+  const [execLoading, setExecLoading] = useState(false);
+  const [execData, setExecData] = useState(null);
+  const [execError, setExecError] = useState(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyData, setVerifyData] = useState(null);
+  const [verifyError, setVerifyError] = useState(null);
+  const [proofLoading, setProofLoading] = useState(false);
+  const [proofData, setProofData] = useState(null);
+  const [proofError, setProofError] = useState(null);
+  const [decisionLoading, setDecisionLoading] = useState(false);
+  const [decisionData, setDecisionData] = useState(null);
+  const [decisionError, setDecisionError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [profiling, setProfiling] = useState(false);
+  const [error, setError] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+
+    setLoading(true);
+    setError(null);
+    setDataset(null);
+    setPreview(null);
+    setProfile(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const uploadRes = await fetch('http://localhost:8000/api/datasets/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json();
+        throw new Error(errorData.detail || 'Failed to upload dataset');
+      }
+
+      const data = await uploadRes.json();
+      setDataset(data);
+      
+      const previewRes = await fetch(`http://localhost:8000/api/datasets/${data.dataset_id}/preview`);
+      if (!previewRes.ok) throw new Error('Failed to fetch dataset preview');
+      const previewData = await previewRes.json();
+      setPreview(previewData);
+      
+    } catch (err) {
+      setError(err.message || 'An error occurred during upload');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
+  const handlePlanAnalysis = async () => {
+    if (!dataset || !question.trim()) return;
+    setPlanLoading(true);
+    setPlanError(null);
+    setPlanData(null);
+    try {
+      const res = await fetch(`http://localhost:8000/api/analyze/plan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          dataset_id: dataset.dataset_id,
+          question: question
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to generate plan');
+      }
+      const data = await res.json();
+      setPlanData(data);
+      setCodeData(null);
+      setCodeError(null);
+    } catch (err) {
+      setPlanError(err.message || 'An error occurred during planning');
+    } finally {
+      setPlanLoading(false);
+    }
+  };
+
+  
+  const handleGenerateCode = async () => {
+    if (!dataset || !planData) return;
+    setCodeLoading(true);
+    setCodeError(null);
+    try {
+      const res = await fetch(`http://localhost:8000/api/analyze/code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          dataset_id: dataset.dataset_id,
+          analysis_plan: planData.plan
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to generate code');
+      }
+      const data = await res.json();
+      setCodeData(data);
+      setExecData(null);
+      setVerifyData(null);
+      setExecError(null);
+    } catch (err) {
+      setCodeError(err.message || 'An error occurred during code generation');
+    } finally {
+      setCodeLoading(false);
+    }
+  };
+
+  
+  const handleExecuteCode = async () => {
+    if (!dataset || !codeData) return;
+    setExecLoading(true);
+    setExecError(null);
+    try {
+      const res = await fetch(`http://localhost:8000/api/analyze/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          dataset_id: dataset.dataset_id,
+          code: codeData.code_data.code
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Execution failed');
+      }
+      const data = await res.json();
+      setExecData(data);
+      setVerifyData(null);
+      setVerifyError(null);
+      setProofData(null);
+      setProofError(null);
+      setDecisionData(null);
+      setDecisionError(null);
+    } catch (err) {
+      setExecError(err.message || 'An error occurred during execution');
+    } finally {
+      setExecLoading(false);
+    }
+  };
+
+  
+  
+  
+  const handleMakeDecision = async () => {
+    if (!dataset || !planData || !verifyData) return;
+    setDecisionLoading(true);
+    setDecisionError(null);
+    try {
+      const res = await fetch(`http://localhost:8000/api/analyze/decision`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          dataset_id: dataset.dataset_id,
+          question: question,
+          analysis_plan: planData.plan,
+          execution_result: execData,
+          verification_report: verifyData
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Decision failed');
+      }
+      const data = await res.json();
+      setDecisionData(data);
+    } catch (err) {
+      setDecisionError(err.message || 'An error occurred during decision');
+    } finally {
+      setDecisionLoading(false);
+    }
+  };
+
+  const handleGenerateProof = async () => {
+    if (!dataset || !planData || !codeData || !execData || !verifyData) return;
+    setProofLoading(true);
+    setProofError(null);
+      setDecisionData(null);
+      setDecisionError(null);
+    try {
+      const res = await fetch(`http://localhost:8000/api/analyze/proof`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          dataset_id: dataset.dataset_id,
+          question: question,
+          analysis_plan: planData.plan,
+          generated_code: codeData.code_data.code,
+          execution_result: execData,
+          verification_report: verifyData
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to generate proof');
+      }
+      const data = await res.json();
+      setProofData(data);
+    } catch (err) {
+      setProofError(err.message || 'An error occurred during proof generation');
+    } finally {
+      setProofLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!dataset || !planData || !codeData || !execData) return;
+    setVerifyLoading(true);
+    setVerifyError(null);
+    try {
+      const res = await fetch(`http://localhost:8000/api/analyze/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          dataset_id: dataset.dataset_id,
+          question: question,
+          analysis_plan: planData.plan,
+          generated_code: codeData.code_data.code,
+          execution_result: execData
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Verification failed');
+      }
+      const data = await res.json();
+      setVerifyData(data);
+    } catch (err) {
+      setVerifyError(err.message || 'An error occurred during verification');
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleGenerateProfile = async () => {
+    if (!dataset) return;
+    setProfiling(true);
+    setError(null);
+    try {
+      const res = await fetch(`http://localhost:8000/api/datasets/${dataset.dataset_id}/profile`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || 'Failed to generate profile');
+      }
+      const profileData = await res.json();
+      setProfile(profileData);
+    } catch (err) {
+      setError(err.message || 'An error occurred during profiling');
+    } finally {
+      setProfiling(false);
+    }
+  };
+
+  const onDragOver = (e) => e.preventDefault();
+  const onDrop = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+        <div className="max-w-6xl mx-auto flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">VERITAS</h1>
+          <p className="text-sm text-gray-500 font-medium">Proof-Carrying Autonomous Data Analyst</p>
+        </div>
+      </header>
+
+      <main className="flex-1 bg-gray-50 p-6">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
+          
+          {/* Left Column (Input) */}
+          <div className="lg:col-span-1 flex flex-col gap-6">
+            <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Dataset</h2>
+              
+              <div 
+                className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center transition-colors cursor-pointer text-center
+                  ${loading ? 'border-gray-200 bg-gray-50 text-gray-400' : 'border-gray-300 text-gray-500 hover:bg-gray-50 hover:border-blue-400'}
+                `}
+                onDragOver={onDragOver}
+                onDrop={onDrop}
+                onClick={() => !loading && fileInputRef.current.click()}
+              >
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept=".csv,.xlsx,.json"
+                  onChange={(e) => handleFileUpload(e.target.files[0])} 
+                />
+                
+                {loading ? (
+                  <div className="flex flex-col items-center">
+                    <svg className="animate-spin h-8 w-8 text-blue-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="text-sm font-medium">Processing Dataset...</p>
+                  </div>
+                ) : (
+                  <>
+                    <svg className="w-8 h-8 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <p className="text-sm font-medium">Drag & drop or click</p>
+                    <p className="text-xs mt-1">CSV, Excel, or JSON</p>
+                  </>
+                )}
+              </div>
+
+              {dataset && !profile && (
+                 <button 
+                   onClick={handleGenerateProfile}
+                   disabled={profiling}
+                   className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm w-full flex items-center justify-center disabled:opacity-50"
+                 >
+                   {profiling ? 'Generating Profile...' : 'Analyze Dataset'}
+                 </button>
+              )}
+
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                  <span className="font-semibold">Error:</span> {error}
+                </div>
+              )}
+            </section>
+
+            <section className={`bg-white rounded-xl shadow-sm border border-gray-200 p-5 ${!profile ? 'opacity-50 pointer-events-none' : ''}`}>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Ask Questions</h2>
+              <div className="flex flex-col gap-4">
+                <textarea 
+                  className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  rows="4"
+                  placeholder="e.g. Which product had the highest sales?"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  disabled={!profile || planLoading}
+                ></textarea>
+                <button 
+                  onClick={handlePlanAnalysis}
+                  disabled={!profile || !question.trim() || planLoading} 
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm w-full flex items-center justify-center transition-colors"
+                >
+                  {planLoading ? 'Understanding your question...' : 'Plan Analysis'}
+                </button>
+                {planError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                    <span className="font-semibold">Error:</span> {planError}
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* Right Column (Results) */}
+          <div className="lg:col-span-3 flex flex-col gap-6">
+            
+            {/* Overview Card */}
+            <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <div className="border-b border-gray-100 pb-4 mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-800">Dataset Overview</h2>
+                {profile ? (
+                   <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">Profiled</span>
+                ) : dataset ? (
+                   <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-medium">Needs Analysis</span>
+                ) : (
+                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">Awaiting Dataset</span>
+                )}
+              </div>
+              
+              {!dataset && !loading && (
+                <div className="flex flex-col items-center justify-center text-gray-400 py-10 gap-3">
+                  <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  <p className="text-sm">Upload your dataset to begin.</p>
+                </div>
+              )}
+
+              {dataset && (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                    <p className="text-xs text-gray-500 mb-1">Rows</p>
+                    <p className="text-lg font-semibold text-gray-800">{dataset.rows.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                    <p className="text-xs text-gray-500 mb-1">Columns</p>
+                    <p className="text-lg font-semibold text-gray-800">{dataset.columns}</p>
+                  </div>
+                  {profile && (
+                    <>
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <p className="text-xs text-gray-500 mb-1">Missing Values</p>
+                        <p className="text-lg font-semibold text-gray-800">{profile.missing_values}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <p className="text-xs text-gray-500 mb-1">Duplicate Rows</p>
+                        <p className="text-lg font-semibold text-gray-800">{profile.duplicate_rows}</p>
+                      </div>
+                      <div className={`rounded-lg p-3 border ${profile.quality_score.score >= 80 ? 'bg-green-50 border-green-200' : profile.quality_score.score >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
+                        <p className="text-xs font-semibold mb-1">Quality Score</p>
+                        <p className="text-lg font-bold">{profile.quality_score.score}/100</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </section>
+
+
+            {/* AI Analysis Plan */}
+            {planData && planData.plan && (
+              <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Analysis Plan</h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-full font-medium">
+                      AI Provider: {planData.provider.charAt(0).toUpperCase() + planData.provider.slice(1) + (planData.fallback_used ? ' (Fallback)' : '')}
+                    </span>
+                    {planData.plan.confidence && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${planData.plan.confidence > 0.8 ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-yellow-100 text-yellow-700 border border-yellow-200'}`}>
+                        {Math.round(planData.plan.confidence * 100)}% Confidence
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Intent</p>
+                      <p className="text-sm font-medium text-gray-800 capitalize bg-gray-50 px-2 py-1 rounded inline-block border border-gray-200">{planData.plan.intent}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Metric & Aggregation</p>
+                      <p className="text-sm text-gray-800">
+                        {planData.plan.aggregation && planData.plan.target_metric ? (
+                          <span className="font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">{planData.plan.aggregation}({planData.plan.target_metric})</span>
+                        ) : 'None'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Group By</p>
+                      <div className="flex flex-wrap gap-1">
+                        {planData.plan.group_by && planData.plan.group_by.length > 0 ? (
+                          planData.plan.group_by.map((gb, i) => (
+                            <span key={i} className="text-xs font-mono bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200">{gb}</span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">None</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                     <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Required Columns</p>
+                      <div className="flex flex-wrap gap-1">
+                        {planData.plan.required_columns && planData.plan.required_columns.length > 0 ? (
+                          planData.plan.required_columns.map((c, i) => (
+                            <span key={i} className="text-xs font-mono bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200">{c}</span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">None</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Filters</p>
+                      <div className="flex flex-col gap-1">
+                        {planData.plan.filters && planData.plan.filters.length > 0 ? (
+                          planData.plan.filters.map((f, i) => (
+                            <span key={i} className="text-xs font-mono bg-yellow-50 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 w-fit">
+                              {f.column} {f.operator} {f.value}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">None</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reasoning */}
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Reasoning</p>
+                  <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-100">{planData.plan.reasoning}</p>
+                </div>
+
+                {/* Ambiguities & Assumptions */}
+                {(planData.plan.ambiguities?.length > 0 || planData.plan.assumptions?.length > 0) && (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {planData.plan.ambiguities?.length > 0 && (
+                      <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                        <p className="text-xs text-red-800 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                          Ambiguities
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                          {planData.plan.ambiguities.map((amb, i) => (
+                            <li key={i}>{amb}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {planData.plan.assumptions?.length > 0 && (
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                        <p className="text-xs text-blue-800 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                          Assumptions
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-blue-700 space-y-1">
+                          {planData.plan.assumptions.map((assump, i) => (
+                            <li key={i}>{assump}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              
+                {/* Generate Code Action */}
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <button 
+                    onClick={handleGenerateCode}
+                    disabled={codeLoading} 
+                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm w-full md:w-auto flex items-center justify-center transition-colors"
+                  >
+                    {codeLoading ? 'Generating Safe Analysis Code...' : 'Generate Analysis Code'}
+                  </button>
+                  {codeError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                      <span className="font-semibold">Error:</span> {codeError}
+                    </div>
+                  )}
+                </div>
+
+
+
+
+              </section>
+            )}
+
+            
+            {/* AI Generated Code */}
+            {codeData && codeData.code_data && (
+              <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 border-l-4 border-l-green-500">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Generated Analysis Code</h2>
+                  <span className="text-xs bg-gray-100 text-gray-700 border border-gray-200 px-2 py-1 rounded-full font-medium">
+                    AI Provider: {codeData.provider.charAt(0).toUpperCase() + codeData.provider.slice(1) + (codeData.fallback_used ? ' (Fallback)' : '')}
+                  </span>
+                </div>
+                
+                <div className="mb-4 bg-yellow-50 text-yellow-800 text-sm p-3 rounded-lg border border-yellow-200 flex items-start gap-2">
+                   <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                   <span><strong>Warning:</strong> Generated code has not been executed yet. The results are not available until Phase 5.</span>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Explanation</p>
+                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-100">{codeData.code_data.result_description}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Libraries</p>
+                        <div className="flex flex-wrap gap-1">
+                          {codeData.code_data.libraries.map((l, i) => (
+                            <span key={i} className="text-xs font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">{l}</span>
+                          ))}
+                        </div>
+                     </div>
+                     <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Operations</p>
+                        <div className="flex flex-wrap gap-1">
+                          {codeData.code_data.operations.map((o, i) => (
+                            <span key={i} className="text-xs font-mono bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200">{o}</span>
+                          ))}
+                        </div>
+                     </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Python Code</p>
+                      <button 
+                        onClick={() => navigator.clipboard.writeText(codeData.code_data.code)}
+                        className="text-xs text-gray-500 hover:text-blue-600 transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono leading-relaxed shadow-inner">
+                      <code>{codeData.code_data.code}</code>
+                    </pre>
+                  </div>
+                </div>
+              
+                {/* Run Code Action */}
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <button 
+                    onClick={handleExecuteCode}
+                    disabled={execLoading} 
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm w-full md:w-auto flex items-center justify-center transition-colors"
+                  >
+                    {execLoading ? 'Executing verified analysis...' : 'Run Analysis'}
+                  </button>
+                  {execError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                      <span className="font-semibold">Error:</span> {execError}
+                    </div>
+                  )}
+                </div>
+
+
+
+
+              </section>
+            )}
+
+            
+            {/* Execution Result */}
+            {execData && execData.success && (
+              <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 border-l-4 border-l-indigo-500">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Execution Result</h2>
+                  <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-full font-medium">
+                    Sandbox: {execData.sandbox_type}
+                  </span>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 overflow-x-auto">
+                  {execData.result.type === 'scalar' && (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-2">Calculated Value</p>
+                      <p className="text-3xl font-bold text-gray-900">{execData.result.value !== null ? String(execData.result.value) : 'null'}</p>
+                    </div>
+                  )}
+                  {execData.result.type === 'dataframe' && (
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-100 border-b border-gray-200">
+                        <tr>
+                          {execData.result.columns.map((c, i) => <th key={i} className="px-4 py-2 whitespace-nowrap">{c}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {execData.result.rows.map((row, i) => (
+                          <tr key={i} className="bg-white border-b border-gray-100 hover:bg-gray-50">
+                            {row.map((val, j) => <td key={j} className="px-4 py-2 whitespace-nowrap">{val !== null ? String(val) : 'null'}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {execData.result.type === 'series' && (
+                    <div className="flex flex-col gap-1">
+                       {execData.result.values.map((v, i) => (
+                         <div key={i} className="px-4 py-2 bg-white border-b border-gray-100 text-sm">{v !== null ? String(v) : 'null'}</div>
+                       ))}
+                    </div>
+                  )}
+                  {execData.result.type === 'object' && (
+                    <pre className="text-sm">
+                      {JSON.stringify(execData.result.value, null, 2)}
+                    </pre>
+                  )}
+                </div>
+
+                {execData.truncated && (
+                  <p className="text-xs text-orange-600 font-medium mb-4 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    Display limited to {execData.result.returned_rows} of {execData.result.total_rows} rows.
+                  </p>
+                )}
+
+                <details className="text-xs text-gray-500">
+                  <summary className="cursor-pointer hover:text-gray-700 font-medium select-none">Technical Details</summary>
+                  <div className="mt-2 pl-4 border-l-2 border-gray-200 space-y-1">
+                    <p><strong>Execution Time:</strong> {execData.execution_time_ms} ms</p>
+                    <p className="font-mono"><strong>Code Hash:</strong> {execData.code_hash}</p>
+                    <p><strong>Dataset ID:</strong> {execData.dataset_id}</p>
+                  </div>
+                </details>
+
+                {/* Verify Action */}
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <button 
+                    onClick={handleVerifyCode}
+                    disabled={verifyLoading} 
+                    className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm w-full md:w-auto flex items-center justify-center transition-colors"
+                  >
+                    {verifyLoading ? 'Verifying...' : 'Verify Result'}
+                  </button>
+                  {verifyError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                      <span className="font-semibold">Error:</span> {verifyError}
+                    </div>
+                  )}
+                </div>
+
+
+
+
+              </section>
+            )}
+
+
+
+            {/* Verification Status */}
+            {verifyData && (
+              <section className={`bg-white rounded-xl shadow-sm border p-5 ${verifyData.verified ? 'border-green-300 border-l-4 border-l-green-500' : 'border-red-300 border-l-4 border-l-red-500'}`}>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Verification Status</h2>
+                  {verifyData.verified ? (
+                    <span className="text-xs bg-green-100 text-green-700 border border-green-200 px-3 py-1 rounded-full font-bold flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                      VERIFIED
+                    </span>
+                  ) : verifyData.verification_status === 'inconclusive' ? (
+                    <span className="text-xs bg-yellow-100 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full font-bold flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                      INCONCLUSIVE
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-red-100 text-red-700 border border-red-200 px-3 py-1 rounded-full font-bold flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                      VERIFICATION FAILED
+                    </span>
+                  )}
+                </div>
+                
+                <p className="text-sm font-medium text-gray-700 mb-4">{verifyData.explanation}</p>
+                
+                <div className="mb-4">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Confidence Score</p>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className={`h-2.5 rounded-full ${verifyData.confidence > 0.8 ? 'bg-green-600' : verifyData.confidence > 0.4 ? 'bg-yellow-400' : 'bg-red-600'}`} style={{width: `${Math.round(verifyData.confidence * 100)}%`}}></div>
+                  </div>
+                  <p className="text-xs mt-1 text-gray-600 text-right">{Math.round(verifyData.confidence * 100)}%</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Verification Methods</p>
+                    <ul className="list-disc list-inside text-sm text-gray-700">
+                      {verifyData.verification_method.map((m, i) => <li key={i}>{m}</li>)}
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Checks</p>
+                    <div className="space-y-2 text-sm">
+                      {verifyData.checks.map((c, i) => (
+                        <div key={i} className="flex items-start gap-2 bg-gray-50 p-2 rounded border border-gray-100">
+                           {c.passed ? (
+                              <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                           ) : (
+                              <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                           )}
+                           <div>
+                              <p className="font-medium text-gray-800">{c.name.replace(/_/g, ' ')}</p>
+                              <p className="text-gray-600 text-xs">{c.message}</p>
+                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {verifyData.discrepancies.length > 0 && (
+                    <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                      <p className="text-xs text-red-800 uppercase tracking-wider font-semibold mb-2">Discrepancies</p>
+                      <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                        {verifyData.discrepancies.map((d, i) => <li key={i}>{d}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+
+
+              </section>
+            )}
+
+
+            
+            {/* Verification Status End */}
+
+            {/* Decision Action */}
+            {verifyData && !decisionData && (
+                <div className="mt-6">
+                  <button 
+                    onClick={handleMakeDecision}
+                    disabled={decisionLoading} 
+                    className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm w-full md:w-auto flex items-center justify-center transition-colors"
+                  >
+                    {decisionLoading ? 'Evaluating Decision...' : 'Evaluate Decision'}
+                  </button>
+                  {decisionError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                      <span className="font-semibold">Error:</span> {decisionError}
+                    </div>
+                  )}
+                </div>
+            )}
+            
+            {/* Decision Result */}
+            {decisionData && decisionData.status === 'cannot_determine' && (
+              <section className="bg-red-50 text-red-900 rounded-xl shadow-lg border border-red-300 p-6 mt-6">
+                <div className="text-center mb-4">
+                   <h2 className="text-2xl font-bold mb-2 flex justify-center items-center gap-2">
+                     <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                     CANNOT DETERMINE
+                   </h2>
+                </div>
+                
+                <p className="text-lg font-medium text-red-800 mb-4">{decisionData.reasons.join(" ")}</p>
+                
+                {decisionData.missing_information.length > 0 && (
+                  <div className="mb-4">
+                    <p className="font-semibold text-red-900 mb-1">Missing information:</p>
+                    <ul className="list-disc list-inside">
+                      {decisionData.missing_information.map((m, i) => <li key={i}>{m}</li>)}
+                    </ul>
+                  </div>
+                )}
+                
+                {decisionData.recommended_action && (
+                  <div className="bg-red-100 p-4 rounded-lg border border-red-200">
+                    <p className="font-semibold text-red-900 mb-1">Recommended action:</p>
+                    <p>{decisionData.recommended_action}</p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* If Answerable, show Proof action */}
+            {decisionData && decisionData.status === 'answerable' && !proofData && (
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <div className="bg-green-50 text-green-800 p-4 rounded-lg border border-green-200 mb-4 flex items-center gap-3">
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span>Question is answerable. Ready to generate proof package.</span>
+                  </div>
+                  <button 
+                    onClick={handleGenerateProof}
+                    disabled={proofLoading} 
+                    className="bg-black hover:bg-gray-800 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm w-full md:w-auto flex items-center justify-center transition-colors"
+                  >
+                    {proofLoading ? 'Assembling Proof...' : 'Generate Proof Package'}
+                  </button>
+                  {proofError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                      <span className="font-semibold">Error:</span> {proofError}
+                    </div>
+                  )}
+                </div>
+            )}
+
+            {/* Proof Package */}
+            {proofData && (
+              <section className="bg-gray-900 text-white rounded-xl shadow-lg border border-gray-800 p-6">
+                <div className="text-center mb-6 pb-6 border-b border-gray-700">
+                   <div className="inline-block px-3 py-1 bg-gray-800 rounded-full text-xs font-mono mb-4 text-gray-400">
+                     Proof ID: {proofData.proof_id}
+                   </div>
+                   <h2 className="text-2xl font-bold mb-2 flex justify-center items-center gap-2">
+                     {proofData.status === 'verified' ? (
+                        <><svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        VERIFIED ANSWER</>
+                     ) : proofData.status === 'inconclusive' ? (
+                        <><svg className="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        INCONCLUSIVE</>
+                     ) : (
+                        <><svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        VERIFICATION FAILED</>
+                     )}
+                   </h2>
+                   
+                   <p className="text-gray-400 text-sm mb-4">Question: {proofData.question}</p>
+                   
+                   {proofData.answer !== null && typeof proofData.answer !== 'object' && (
+                     <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400 my-4">
+                       {String(proofData.answer)}
+                     </div>
+                   )}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
+                   <div>
+                     <h3 className="font-semibold text-gray-300 uppercase tracking-wider text-xs mb-3 flex items-center gap-2">
+                       <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                       Dataset Evidence
+                     </h3>
+                     <ul className="space-y-1 text-gray-400">
+                       <li><span className="text-gray-500">File:</span> {proofData.dataset_evidence.filename}</li>
+                       <li><span className="text-gray-500">Rows:</span> {proofData.dataset_evidence.row_count.toLocaleString()}</li>
+                       <li><span className="text-gray-500">Columns used:</span> {proofData.dataset_evidence.columns_used.join(", ")}</li>
+                     </ul>
+                   </div>
+                   
+                   <div>
+                     <h3 className="font-semibold text-gray-300 uppercase tracking-wider text-xs mb-3 flex items-center gap-2">
+                       <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                       Verification Check
+                     </h3>
+                     <ul className="space-y-1 text-gray-400">
+                       <li><span className="text-gray-500">Confidence:</span> {Math.round(proofData.confidence * 100)}%</li>
+                       <li><span className="text-gray-500">Checks Passed:</span> {proofData.verification.checks_passed}</li>
+                       <li><span className="text-gray-500">Checks Failed:</span> {proofData.verification.checks_failed}</li>
+                     </ul>
+                   </div>
+                   
+                   <div className="md:col-span-2">
+                     <h3 className="font-semibold text-gray-300 uppercase tracking-wider text-xs mb-3 flex items-center gap-2">
+                       <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                       Computation Steps
+                     </h3>
+                     <div className="bg-gray-800 rounded p-3 space-y-2">
+                       {proofData.computation.steps.map((s, i) => (
+                         <div key={i} className="flex gap-3 text-gray-400">
+                           <span className="text-gray-500 w-4">{s.step}.</span>
+                           <span className="text-blue-400 w-24 font-mono text-xs mt-0.5">{s.operation}</span>
+                           <span>{s.description}</span>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                   
+                   <div className="md:col-span-2">
+                     <h3 className="font-semibold text-gray-300 uppercase tracking-wider text-xs mb-3 flex items-center gap-2">
+                       <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                       Evidence Integrity
+                     </h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[10px] text-gray-500 bg-gray-800 p-3 rounded">
+                        <div className="truncate"><span className="text-gray-400">Code Hash:</span> {proofData.hashes.code_hash}</div>
+                        <div className="truncate"><span className="text-gray-400">Plan Hash:</span> {proofData.hashes.plan_hash}</div>
+                        <div className="truncate"><span className="text-gray-400">Exec Hash:</span> {proofData.hashes.execution_hash}</div>
+                        <div className="truncate"><span className="text-gray-400">Proof Hash:</span> {proofData.hashes.proof_package_hash}</div>
+                     </div>
+                   </div>
+                   
+                   <div className="md:col-span-2">
+                     <h3 className="font-semibold text-gray-300 uppercase tracking-wider text-xs mb-3 flex items-center gap-2">
+                       <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                       Limitations
+                     </h3>
+                     <ul className="list-disc list-inside text-gray-400 space-y-1">
+                       {proofData.limitations.map((l, i) => <li key={i}>{l}</li>)}
+                     </ul>
+                   </div>
+                </div>
+                
+                <div className="mt-6 pt-4 border-t border-gray-700 flex justify-center">
+                  <a 
+                    href={`data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(proofData, null, 2))}`}
+                    download={`${proofData.proof_id}.json`}
+                    className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded text-sm transition-colors flex items-center gap-2 border border-gray-600"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Download Proof JSON
+                  </a>
+                </div>
+              </section>
+            )}
+
+            {/* Profile Content */}
+            {profile && (
+              <>
+                <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-4">Data Quality Findings</h2>
+                  {profile.quality_findings.length === 0 ? (
+                    <div className="p-4 bg-green-50 text-green-700 rounded-lg text-sm border border-green-200 flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
+                      Dataset structure looks healthy. No major quality issues detected.
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto">
+                      {profile.quality_findings.map((f, i) => (
+                        <div key={i} className={`p-3 rounded-lg text-sm border ${f.severity === 'critical' ? 'bg-red-50 border-red-200 text-red-800' : f.severity === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                           <span className="font-semibold uppercase text-xs mr-2">[{f.severity}]</span>
+                           {f.column && <span className="font-semibold mr-1">{f.column}:</span>}
+                           {f.message}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-4">Column Analysis</h2>
+                  <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3">Column</th>
+                          <th className="px-4 py-3">Logical Type</th>
+                          <th className="px-4 py-3 text-right">Missing</th>
+                          <th className="px-4 py-3 text-right">Unique</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {profile.columns.map((col, idx) => (
+                          <tr key={idx} className="bg-white border-b hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium text-gray-900">{col.column_name}</td>
+                            <td className="px-4 py-3">
+                              <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded border border-gray-200" title={col.type_reason}>
+                                {col.logical_type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right text-gray-600">
+                              {col.null_count} ({(col.null_percentage*100).toFixed(1)}%)
+                            </td>
+                            <td className="px-4 py-3 text-right text-gray-600">
+                              {col.unique_count} ({(col.unique_percentage*100).toFixed(1)}%)
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-4">Numeric Statistics</h2>
+                  <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3">Column</th>
+                          <th className="px-4 py-3 text-right">Min</th>
+                          <th className="px-4 py-3 text-right">Max</th>
+                          <th className="px-4 py-3 text-right">Mean</th>
+                          <th className="px-4 py-3 text-right">Median</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {profile.columns.filter(c => c.logical_type === 'numeric' && c.numeric_stats).map((col, idx) => (
+                          <tr key={idx} className="bg-white border-b hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium text-gray-900">{col.column_name}</td>
+                            <td className="px-4 py-3 text-right text-gray-600">{col.numeric_stats.min?.toFixed(2) ?? 'N/A'}</td>
+                            <td className="px-4 py-3 text-right text-gray-600">{col.numeric_stats.max?.toFixed(2) ?? 'N/A'}</td>
+                            <td className="px-4 py-3 text-right text-gray-600">{col.numeric_stats.mean?.toFixed(2) ?? 'N/A'}</td>
+                            <td className="px-4 py-3 text-right text-gray-600">{col.numeric_stats.median?.toFixed(2) ?? 'N/A'}</td>
+                          </tr>
+                        ))}
+                        {profile.columns.filter(c => c.logical_type === 'numeric' && c.numeric_stats).length === 0 && (
+                           <tr>
+                             <td colSpan="5" className="px-4 py-4 text-center text-gray-500 italic">No numeric columns found.</td>
+                           </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* Preview fallback when not profiled */}
+            {!profile && preview && preview.preview && preview.preview.length > 0 && (
+               <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Data Preview</h3>
+                  <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm max-h-[400px]">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                          {preview.column_names.map((col, idx) => (
+                            <th key={idx} className="px-4 py-3 whitespace-nowrap">{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {preview.preview.map((row, rowIdx) => (
+                          <tr key={rowIdx} className="bg-white border-b hover:bg-gray-50">
+                            {preview.column_names.map((col, colIdx) => (
+                              <td key={colIdx} className="px-4 py-2 whitespace-nowrap text-gray-600">
+                                {row[col] !== null && row[col] !== undefined ? String(row[col]) : <span className="text-gray-400 italic">null</span>}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 text-right">Showing first {preview.preview.length} rows</p>
+ 
+
+
+              </section>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default App;

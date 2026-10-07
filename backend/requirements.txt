@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pandas
+duckdb
+python-dotenv
+python-multipart
+openpyxl
+google-genai
+openai

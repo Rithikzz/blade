@@ -1,0 +1,161 @@
+{
+  "proof_id": "proof_20261007_f24a9d7e",
+  "question": "What was the total revenue in the South region during 2025?",
+  "answer": 700.0,
+  "status": "verified",
+  "confidence": 0.99,
+  "evidence": [
+    {
+      "id": "00b6212f",
+      "type": "dataset",
+      "title": "Source dataset",
+      "description": "Analysis was performed against the uploaded dataset.",
+      "status": "passed",
+      "details": {
+        "dataset_id": "c3e56c9b-7413-4d12-a6d9-3cb31df4e4d3",
+        "filename": "unknown",
+        "rows": 0,
+        "columns": 0
+      }
+    },
+    {
+      "id": "6b812170",
+      "type": "filter",
+      "title": "Filter: region",
+      "description": "Applied condition: equals South",
+      "status": "passed",
+      "details": {
+        "column": "region",
+        "operator": "equals",
+        "value": "South"
+      }
+    },
+    {
+      "id": "94ebea82",
+      "type": "filter",
+      "title": "Time Range Filter",
+      "description": "Applied date range on date",
+      "status": "passed",
+      "details": {
+        "column": "date",
+        "start": "2025-01-01",
+        "end": "2025-12-31"
+      }
+    },
+    {
+      "id": "3955a43c",
+      "type": "aggregation",
+      "title": "Aggregation",
+      "description": "SUM(revenue)",
+      "status": "passed",
+      "details": {
+        "aggregation": "sum",
+        "target_metric": "revenue"
+      }
+    },
+    {
+      "id": "b48cf0c0",
+      "type": "verification",
+      "title": "Independent Verification",
+      "description": "Result independently computed and compared. Expected: 700.0, Actual: 700.0",
+      "status": "passed",
+      "details": {
+        "checks": [
+          {
+            "name": "apply_filters",
+            "passed": true,
+            "severity": "info",
+            "expected": null,
+            "actual": null,
+            "message": "Applied 1 filters."
+          },
+          {
+            "name": "apply_time_range",
+            "passed": true,
+            "severity": "info",
+            "expected": null,
+            "actual": null,
+            "message": "Applied time range filter."
+          },
+          {
+            "name": "verify_aggregation",
+            "passed": true,
+            "severity": "info",
+            "expected": 700.0,
+            "actual": 700.0,
+            "message": "Independent aggregation matches executed result."
+          }
+        ]
+      }
+    }
+  ],
+  "computation": {
+    "steps": [
+      {
+        "step": 1,
+        "operation": "filter",
+        "description": "Keep rows where region equals South"
+      },
+      {
+        "step": 2,
+        "operation": "date_filter",
+        "description": "Keep rows between 2025-01-01 and 2025-12-31"
+      },
+      {
+        "step": 3,
+        "operation": "aggregation",
+        "description": "SUM(revenue)"
+      }
+    ]
+  },
+  "verification": {
+    "status": "verified",
+    "methods": [
+      "independent deterministic aggregation",
+      "filter validation",
+      "result structure validation"
+    ],
+    "checks_passed": 0,
+    "checks_failed": 0,
+    "confidence": 0.99,
+    "discrepancies": [],
+    "verification_time_ms": 2.8693675994873047
+  },
+  "dataset_evidence": {
+    "dataset_id": "c3e56c9b-7413-4d12-a6d9-3cb31df4e4d3",
+    "filename": "unknown",
+    "row_count": 0,
+    "column_count": 0,
+    "columns_used": [
+      "revenue",
+      "region",
+      "date"
+    ]
+  },
+  "provenance": {
+    "code_language": "python",
+    "libraries": [
+      "pandas",
+      "numpy",
+      "duckdb"
+    ],
+    "execution_time_ms": 0.0,
+    "sandbox_type": "unknown",
+    "result_type": "scalar",
+    "result_truncated": false
+  },
+  "hashes": {
+    "code_hash": "5694d08a2e53ffcae0c3103e5ad6f6076abd960eb1f8a56577040bc1028f702b",
+    "plan_hash": "d40749a7b041261353d30061c7b1ec55044fdca09fe51b1b776a7ce9d9cf568f",
+    "execution_hash": "64ca5ab619a9ea4835bfff2e5f84f07ca47eca098d9ddf0dbe62bb2ea0830644",
+    "verification_hash": "4078139a60540cdfeb1fcea175641234689b59dcfa105d9f2b41c85192fa1f0d",
+    "dataset_hash": null,
+    "proof_package_hash": "c565175028635843d5b337c93fd283af13fc7c00f370a5adca66bb4022225ef6"
+  },
+  "limitations": [
+    "Analysis is based only on the uploaded dataset.",
+    "Missing values may affect the calculation.",
+    "The result does not establish causation."
+  ],
+  "created_at": "2026-10-07T09:44:46.440901+00:00"
+}

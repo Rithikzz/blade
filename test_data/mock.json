@@ -1,0 +1,8 @@
+[
+  {"id": 1, "first_name": null, "last_name": null, "email": "jane.smith@example", "age": 29, "join_date": "2024-01-01", "account_balance": 100.50, "phone_number": "123-456-7890"},
+  {"id": 2, "first_name": "Bob", "last_name": "Ross", "email": "frank@miller@com", "age": 34, "join_date": "2024-01-02", "account_balance": "NaN", "phone_number": null},
+  {"id": 3, "first_name": "Charlie", "last_name": "Chaplin", "email": "charlie@test.com", "age": "INVALID", "join_date": "2024-01-03", "account_balance": null, "phone_number": ""},
+  {"id": 4, "first_name": "Alice", "last_name": "Wonderland", "email": null, "age": 45, "join_date": "N/A", "account_balance": 150.0, "phone_number": "987-654-3210"},
+  {"id": 5, "first_name": null, "last_name": null, "email": "jane.smith@example", "age": 29, "join_date": "2024-01-01", "account_balance": 100.50, "phone_number": "123-456-7890"},
+  {"id": 6, "first_name": "Test", "last_name": "User", "email": "test@user.com", "age": 40, "join_date": "2024-13-45", "account_balance": 9999999.99, "phone_number": "555-555-5555"}
+]

@@ -1,0 +1,6 @@
+id,name,value,date
+1,Alice,100,2026-01-01
+2,Bob,,2026-01-02
+2,Bob,,2026-01-02
+, , ,
+3,Charlie,300,invalid-date
